@@ -6,6 +6,7 @@ import sys
 import argparse
 import subprocess
 from time import sleep
+from pydoc import locate
 from pprint import pprint
 
 TRIALS  = 4
@@ -23,9 +24,9 @@ class Benchmark(object):
         output = proc.stdout.decode()
         results = {}
         for key, val in self.records.items():
-            m = re.search(val, output)
+            m = re.search(val['pattern'], output)
             if m:
-                results[key] = float(m.group(key))
+                results[key] = val['type'](m.group(key))
             else:
                 results = {
                     'args'   : proc.args,
@@ -39,10 +40,10 @@ class Benchmark(object):
     def run(self, input: csv.reader, output: csv.writer):
         for row in input:
             new_args = [ a.format(**row) for a in self.args ]
-            best = { rec : float("inf") for rec in self.records }
+            best = None
             for i in range(TRIALS):
                 results = self.exec(new_args)
-                if results[self.order_by] < best[self.order_by]:
+                if best == None or results[self.order_by] < best[self.order_by]:
                     best = results
             row.update(best)
             writer.writerow(row)
@@ -55,7 +56,7 @@ if __name__ == '__main__':
                         default=sys.stdout, type=argparse.FileType('w'))
     parser.add_argument("-r", "--record", dest='records',
                         help="Stores a value matching the second argument into a column matching the first",
-                        action='append', nargs=2, required=True)
+                        action='append', nargs=3, required=True)
     # TODO: Make -- COMMAND show up in help
     # parser.add_argument("--", dest='command', help="Command",
     #                     type=str, action='extend', required=True)
@@ -77,11 +78,14 @@ if __name__ == '__main__':
         if record[0] in outputs:
             print("Duplicate key", record[0], file=sys.stderr)
             sys.exit(2)
-        pattern = re.compile(record[1], re.M)
+        pattern = re.compile(record[2], re.M)
         if record[0] not in pattern.groupindex:
             print("Pattern", pattern.pattern, "is missing group", record[0])
             sys.exit(2)
-        outputs[record[0]] = pattern
+        outputs[record[0]] = {
+            'pattern' : pattern,
+            'type' : locate(record[1])
+        }
 
     benchmark = Benchmark(outputs, command)
     
