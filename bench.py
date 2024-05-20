@@ -5,9 +5,10 @@ import csv
 import sys
 import argparse
 import subprocess
-from time import sleep
+from time import sleep # TODO: Configurable sleep between runs
 from pydoc import locate
 from pprint import pprint
+from typing import TextIO
 
 TRIALS  = 4
 LOG_CNT = 10
@@ -37,8 +38,13 @@ class Benchmark(object):
                 return None
         return results
 
-    def run(self, input: csv.reader, output: csv.writer):
-        for row in input:
+    def run(self, input: TextIO, output: TextIO):
+        reader = csv.DictReader(input)
+        writer_fields = reader.fieldnames + [ key for key in self.records ]
+        writer = csv.DictWriter(output, writer_fields)
+        writer.writeheader()
+
+        for row in reader:
             new_args = [ a.format(**row) for a in self.args ]
             best = None
             for i in range(TRIALS):
@@ -47,6 +53,8 @@ class Benchmark(object):
                     best = results
             row.update(best)
             writer.writerow(row)
+            output.flush() # Write lines immediately so we can ^C
+
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -87,13 +95,12 @@ if __name__ == '__main__':
             'type' : locate(record[1])
         }
 
+    # Create benchmark
     benchmark = Benchmark(outputs, command)
     
-    # Open input and output
-    reader = csv.DictReader(args.infile)
-    writer_fields = reader.fieldnames + [ key for key in outputs ]
-    writer = csv.DictWriter(args.outfile, writer_fields)
-    writer.writeheader()
-    
-    benchmark.run(reader, writer)
-    
+    # Run benchmark
+    benchmark.run(args.infile, args.outfile)
+
+    # Close files
+    args.infile.close()
+    args.outfile.close()
