@@ -10,10 +10,13 @@ from pydoc import locate
 from pprint import pprint
 from typing import TextIO
 
-TRIALS  = 4
+TRIALS  = 4 # TODO: Make this an argument
 LOG_CNT = 10
 
 class Benchmark(object):
+    """
+    Benchmark class
+    """
     def __init__(self, records: dict[str, dict], args: tuple[str]):
         self.records = records
         self.args = args
@@ -49,11 +52,20 @@ class Benchmark(object):
             best = None
             for i in range(TRIALS):
                 results = self.exec(new_args)
+
+                # Skip failed runs
+                if results == None:
+                    continue
+
+                # TODO: Customize order_by operator
                 if best == None or results[self.order_by] < best[self.order_by]:
                     best = results
-            row.update(best)
-            writer.writerow(row)
-            output.flush() # Write lines immediately so we can ^C
+
+            # Write best result
+            if best != None:
+                row.update(best)
+                writer.writerow(row)
+                output.flush() # Write lines immediately so we can ^C
 
 
 if __name__ == '__main__':
