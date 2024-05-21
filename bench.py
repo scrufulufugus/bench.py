@@ -11,7 +11,7 @@ from pydoc import locate
 from pprint import pprint
 from typing import Iterable, TextIO
 
-TRIALS  = 4 # TODO: Make this an argument
+TRIALS  = 3 # TODO: Make this an argument
 LOG_CNT = 10
 
 class Benchmark(object):
