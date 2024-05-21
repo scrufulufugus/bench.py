@@ -45,7 +45,7 @@ class Benchmark(object):
     def run(self, input: Iterable[str], output: TextIO):
         reader = csv.DictReader(input)
         writer_fields = reader.fieldnames + [ key for key in self.records ]
-        writer = csv.DictWriter(output, writer_fields)
+        writer = csv.DictWriter(output, writer_fields, dialect=reader.dialect)
         writer.writeheader()
 
         for row in reader:
@@ -73,11 +73,11 @@ def mutli_input_cross(*files):
     Cross product of multiple input files
     """
     header = [ f.readline().rstrip() for f in files ]
-    yield ','.join(header) + '\n'
+    yield csv.excel.delimiter.join(header) + '\n'
 
     cross = product(*files)
     for line in cross:
-        yield ','.join([ l.rstrip() for l in line ]) + '\n'
+        yield csv.excel.delimiter.join([ l.rstrip() for l in line ]) + '\n'
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
