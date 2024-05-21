@@ -5,10 +5,11 @@ import csv
 import sys
 import argparse
 import subprocess
+from itertools import product
 from time import sleep # TODO: Configurable sleep between runs
 from pydoc import locate
 from pprint import pprint
-from typing import TextIO
+from typing import Iterable, TextIO
 
 TRIALS  = 4 # TODO: Make this an argument
 LOG_CNT = 10
@@ -41,7 +42,7 @@ class Benchmark(object):
                 return None
         return results
 
-    def run(self, input: TextIO, output: TextIO):
+    def run(self, input: Iterable[str], output: TextIO):
         reader = csv.DictReader(input)
         writer_fields = reader.fieldnames + [ key for key in self.records ]
         writer = csv.DictWriter(output, writer_fields)
@@ -67,11 +68,21 @@ class Benchmark(object):
                 writer.writerow(row)
                 output.flush() # Write lines immediately so we can ^C
 
+def mutli_input_cross(*files):
+    """
+    Cross product of multiple input files
+    """
+    header = [ f.readline().rstrip() for f in files ]
+    yield ','.join(header) + '\n'
+
+    cross = product(*files)
+    for line in cross:
+        yield ','.join([ l.rstrip() for l in line ]) + '\n'
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument("-i", "--in", dest='infile', help="Input file",
-                        default=sys.stdin, type=argparse.FileType('r'))
+    parser.add_argument("-i", "--in", dest='infile', help="Input file", action='append',
+                        type=argparse.FileType('r'), required=False)
     parser.add_argument("-o", "--out", dest='outfile', help="Output file",
                         default=sys.stdout, type=argparse.FileType('w'))
     parser.add_argument("-r", "--record", dest='records',
@@ -92,6 +103,15 @@ if __name__ == '__main__':
 
     args = parser.parse_args()
 
+    # If we have mutliple input files
+    # we want a cross product of their lines
+    if args.infile == None:
+        infile = sys.stdin
+    elif len(args.infile) == 1:
+        infile = args.infile[0]
+    else:
+        infile = mutli_input_cross(*args.infile)
+
     # Define output format
     outputs = {}
     for record in args.records:
@@ -111,8 +131,10 @@ if __name__ == '__main__':
     benchmark = Benchmark(outputs, command)
     
     # Run benchmark
-    benchmark.run(args.infile, args.outfile)
+    benchmark.run(infile, args.outfile)
 
     # Close files
-    args.infile.close()
+    if args.infile != None:
+        for f in args.infile:
+            f.close()
     args.outfile.close()
